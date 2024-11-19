@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Dimensions, TouchableOpacity, Text, ScrollView, Modal } from 'react-native';
-import MapView, { Overlay, Polygon, UrlTile } from 'react-native-maps';
+import MapView, { Marker, Overlay, Polygon, UrlTile } from 'react-native-maps';
 import axios from 'axios';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format, parseISO } from 'date-fns';
+import Geolocation from 'react-native-geolocation-service';
+import { PermissionsAndroid, Platform } from 'react-native';
+import * as Location from 'expo-location';
 
 interface TurbulenceFeature {
   type: 'Feature';
@@ -54,6 +57,7 @@ export default function Home() {
   const [showPolygons, setShowPolygons] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [groupedTimes, setGroupedTimes] = useState<{ [key: string]: string[] }>({});
+  const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   useEffect(() => {
     console.log('Selected layer changed:', selectedLayer);
@@ -62,7 +66,7 @@ export default function Home() {
 
   useEffect(() => {
     if (availableTimes.length > 0) {
-      console.log('Grouping times:', availableTimes);
+      // console.log('Grouping times:', availableTimes);
       const grouped = availableTimes.reduce((acc, time) => {
         const date = time.substring(0, 8); // Get YYYYMMDD
         if (!acc[date]) {
@@ -71,16 +75,63 @@ export default function Home() {
         acc[date].push(time);
         return acc;
       }, {} as { [key: string]: string[] });
-      console.log('Grouped times:', grouped);
+      // console.log('Grouped times:', grouped);
       setGroupedTimes(grouped);
       setSelectedDate(Object.keys(grouped)[0]);
     }
   }, [availableTimes]);
 
+  useEffect(() => {
+    requestLocationPermission();
+  }, []);
+  
+  const requestLocationPermission = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.High,
+            timeInterval: 1000,
+            distanceInterval: 1
+          },
+          (location) => {
+            setCurrentLocation({
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude
+            });
+          }
+        );
+      }
+    } catch (err) {
+      console.warn('Location permission error:', err);
+    }
+  };
+  
+  const watchLocation = () => {
+    Geolocation.watchPosition(
+      (position) => {
+        setCurrentLocation({
+          latitude: Number(position.coords.latitude),
+          longitude: Number(position.coords.longitude)
+        });
+      },
+      (error) => {
+        console.error('Location error:', error);
+      },
+      {
+        enableHighAccuracy: true,
+        distanceFilter: 10,
+        interval: 5000,
+        fastestInterval: 2000,
+      }
+    );
+  };
+
   const fetchTimes = async () => {
     try {
       const productId = selectedLayer.gridLayer;
-      console.log('Fetching times for product:', productId);
+      // console.log('Fetching times for product:', productId);
       
       const url = `https://realearth.ssec.wisc.edu/api/times?products=${productId}`;
       const response = await axios.get(url);
@@ -88,12 +139,12 @@ export default function Home() {
       let times: string[] = [];
       if (response.data && response.data[productId]) {
         times = response.data[productId];
-        console.log('Found times for layer:', times.length);
+        // console.log('Found times for layer:', times.length);
         
         setAvailableTimes(times);
         if (times.length > 0) {
           const latestTime = times[times.length - 1];
-          console.log('Setting latest time:', latestTime);
+          // console.log('Setting latest time:', latestTime);
           setSelectedTime(latestTime);
           fetchTurbulenceData(latestTime);
         }
@@ -104,19 +155,23 @@ export default function Home() {
   };
 
   useEffect(() => {
-    console.log('Available times updated:', availableTimes);
+    // console.log('Current location updated:', currentLocation);
+  }, [currentLocation]);
+
+  useEffect(() => {
+    // console.log('Available times updated:', availableTimes);
     if (availableTimes.length > 0) {
-      console.log('First available time:', availableTimes[0]);
+      // console.log('First available time:', availableTimes[0]);
     }
   }, [availableTimes]);
 
   const fetchTurbulenceData = async (time: string) => {
     try {
-      console.log('Fetching turbulence data for:', selectedLayer.polyLayer, time);
+      // console.log('Fetching turbulence data for:', selectedLayer.polyLayer, time);
       const response = await axios.get(
         `https://realearth.ssec.wisc.edu/api/geojson?products=${selectedLayer.polyLayer}&time=${time}`
       );
-      console.log('Turbulence data received:', response.data);
+      // console.log('Turbulence data received:', response.data);
       setTurbulenceData(response.data);
     } catch (error) {
       console.error('Error fetching turbulence data:', error);
@@ -158,19 +213,20 @@ export default function Home() {
 
   // Add this useEffect to monitor state changes
   useEffect(() => {
-    console.log('State update:', {
-      selectedLayer: selectedLayer.id,
-      selectedTime,
-      availableTimesCount: availableTimes.length,
-      hasGroupedTimes: Object.keys(groupedTimes).length > 0,
-      hasTurbulenceData: turbulenceData !== null
-    });
+    // console.log('State update:', {
+    //   selectedLayer: selectedLayer.id,
+    //   selectedTime,
+    //   availableTimesCount: availableTimes.length,
+    //   hasGroupedTimes: Object.keys(groupedTimes).length > 0,
+    //   hasTurbulenceData: turbulenceData !== null
+    // });
   }, [selectedLayer, selectedTime, availableTimes, groupedTimes, turbulenceData]);
 
   return (
     <View style={styles.container}>
       <MapView
         style={styles.map}
+        showsUserLocation={true}
         initialRegion={{
           latitude: 37.0902,
           longitude: -95.7129,
@@ -199,6 +255,19 @@ export default function Home() {
             strokeWidth={1}
           />
         ))}
+        {/* {currentLocation && (
+        <Marker
+          coordinate={{
+            latitude: Number(currentLocation.latitude),
+            longitude: Number(currentLocation.longitude)
+          }}
+          anchor={{ x: 0.5, y: 0.5 }}
+        >
+          <View style={styles.locationDot}>
+            <View style={styles.locationDotInner} />
+          </View>
+        </Marker>
+      )} */}
       </MapView>
 
       <View style={styles.controls}>
@@ -211,7 +280,7 @@ export default function Home() {
                 selectedLayer.id === layer.id && styles.selectedLayer
               ]}
               onPress={async () => {  // Make this async
-                console.log('Switching to layer:', layer);
+                // console.log('Switching to layer:', layer);
                 // Clear states first
                 setTurbulenceData(null);
                 setSelectedTime('');
@@ -229,7 +298,7 @@ export default function Home() {
                   
                   if (response.data && response.data[layer.gridLayer]) {
                     const times = response.data[layer.gridLayer];
-                    console.log('New layer times:', times);
+                    // console.log('New layer times:', times);
                     setAvailableTimes(times);
                     
                     if (times.length > 0) {
@@ -522,5 +591,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  locationDot: {
+    width: 24,
+    height: 24,
+    backgroundColor: 'rgba(37, 116, 255, 0.2)',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  locationDotInner: {
+    width: 12,
+    height: 12,
+    backgroundColor: '#2574FF',
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
 });
