@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Dimensions, TouchableOpacity, Text, ScrollView, Modal } from 'react-native';
 import MapView, { Marker, Overlay, Polygon, UrlTile } from 'react-native-maps';
 import axios from 'axios';
+import LinearGradient from 'react-native-linear-gradient';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format, parseISO } from 'date-fns';
-// import Geolocation from 'react-native-geolocation-service';
+import Geolocation from 'react-native-geolocation-service';
 import { PermissionsAndroid, Platform } from 'react-native';
 import * as Location from 'expo-location';
 
@@ -108,25 +109,26 @@ export default function Home() {
     }
   };
   
-  const watchLocation = () => {
-    Geolocation.watchPosition(
-      (position) => {
-        setCurrentLocation({
-          latitude: Number(position.coords.latitude),
-          longitude: Number(position.coords.longitude)
-        });
-      },
-      (error) => {
-        console.error('Location error:', error);
-      },
-      {
-        enableHighAccuracy: true,
-        distanceFilter: 10,
-        interval: 5000,
-        fastestInterval: 2000,
-      }
-    );
-  };
+ 
+const watchLocation = () => {
+  Geolocation.watchPosition(
+    (position) => {
+      setCurrentLocation({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude
+      });
+    },
+    (error) => {
+      console.error('Location error:', error);
+    },
+    {
+      enableHighAccuracy: true,
+      distanceFilter: 10,  // meters
+      interval: 5000,      // 5 seconds
+      fastestInterval: 2000,  // 2 seconds
+    }
+  );
+};
 
   const fetchTimes = async () => {
     try {
@@ -224,6 +226,34 @@ export default function Home() {
 
   return (
     <View style={styles.container}>
+    {/* Gradient Legend */}
+    <View style={styles.legendContainer}>
+        <Text style={styles.legendTitle}>Probability</Text>
+
+        {/* Custom Color Legend Bar */}
+        <View style={styles.legendBar}>
+          {[
+      'rgba(255, 0, 0, 0.5)',   // Red for >= 0.8
+      'rgba(255, 165, 0, 0.5)', // Orange for >= 0.6
+      'rgba(255, 255, 0, 0.5)', // Yellow for >= 0.4
+      'rgba(0, 255, 0, 0.5)',   // Green for < 0.4
+    ].map((color, index) => (
+            <View
+              key={index}
+              style={[styles.legendSegment, { backgroundColor: color }]}
+            />
+          ))}
+        </View>
+
+        {/* Labels */}
+        <View style={styles.labelsContainer}>
+          <Text style={styles.label}>High</Text>
+          <Text style={styles.label}>Moderate</Text>
+          <Text style={styles.label}>Low</Text>
+        </View>
+      </View>
+
+    {/* Map */}
       <MapView
         style={styles.map}
         showsUserLocation={true}
@@ -437,10 +467,46 @@ export default function Home() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    position: 'relative',
   },
   map: {
     width: Dimensions.get('window').width,
     height: Dimensions.get('window').height,
+  },
+  legendContainer: {
+    position: 'absolute', // Allow legend to hover
+    top: 20, // Distance from the bottom of the map
+    left: Dimensions.get('window').width / 2 - 100, // Center horizontally
+    width: 200, // Match legend bar width
+    zIndex: 10, // Ensure it's above the map
+    alignItems: 'center',
+    backgroundColor: 'transparent', // Transparent background
+  },
+  legendTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 5,
+    color: '#FFF',
+  },
+  legendBar: {
+    flexDirection: 'row',
+    width: 200,
+    height: 20,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  legendSegment: {
+    flex: 1,
+  },
+  labelsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: 200,
+    marginTop: 5,
+  },
+  label: {
+    fontSize: 12,
+    color: '#FFF',
   },
   controls: {
     position: 'absolute',
