@@ -4,7 +4,7 @@ import MapView, { Marker, Overlay, Polygon, UrlTile } from 'react-native-maps';
 import axios from 'axios';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format, parseISO } from 'date-fns';
-import Geolocation from 'react-native-geolocation-service';
+// import Geolocation from 'react-native-geolocation-service';
 import { PermissionsAndroid, Platform } from 'react-native';
 import * as Location from 'expo-location';
 
