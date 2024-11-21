@@ -5,7 +5,7 @@ import axios from 'axios';
 import LinearGradient from 'react-native-linear-gradient';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format, parseISO } from 'date-fns';
-import Geolocation from 'react-native-geolocation-service';
+// import Geolocation from 'react-native-geolocation-service';
 import { PermissionsAndroid, Platform } from 'react-native';
 import * as Location from 'expo-location';
 
@@ -60,6 +60,11 @@ export default function Home() {
   const [groupedTimes, setGroupedTimes] = useState<{ [key: string]: string[] }>({});
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
+  // Animation Creation
+  const [animationPlaying, setAnimationPlaying] = useState(false);
+  const [animationInterval, setAnimationInterval] = useState<NodeJS.Timeout | null>(null);
+
+
   useEffect(() => {
     console.log('Selected layer changed:', selectedLayer);
     fetchTimes();
@@ -110,25 +115,25 @@ export default function Home() {
   };
   
  
-const watchLocation = () => {
-  Geolocation.watchPosition(
-    (position) => {
-      setCurrentLocation({
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude
-      });
-    },
-    (error) => {
-      console.error('Location error:', error);
-    },
-    {
-      enableHighAccuracy: true,
-      distanceFilter: 10,  // meters
-      interval: 5000,      // 5 seconds
-      fastestInterval: 2000,  // 2 seconds
-    }
-  );
-};
+// const watchLocation = () => {
+//   Geolocation.watchPosition(
+//     (position) => {
+//       setCurrentLocation({
+//         latitude: position.coords.latitude,
+//         longitude: position.coords.longitude
+//       });
+//     },
+//     (error) => {
+//       console.error('Location error:', error);
+//     },
+//     {
+//       enableHighAccuracy: true,
+//       distanceFilter: 10,  // meters
+//       interval: 5000,      // 5 seconds
+//       fastestInterval: 2000,  // 2 seconds
+//     }
+//   );
+// };
 
   const fetchTimes = async () => {
     try {
@@ -233,10 +238,10 @@ const watchLocation = () => {
         {/* Custom Color Legend Bar */}
         <View style={styles.legendBar}>
           {[
-      'rgba(255, 0, 0, 0.5)',   // Red for >= 0.8
-      'rgba(255, 165, 0, 0.5)', // Orange for >= 0.6
-      'rgba(255, 255, 0, 0.5)', // Yellow for >= 0.4
-      'rgba(0, 255, 0, 0.5)',   // Green for < 0.4
+      'rgba(255, 0, 0, 0.7)',   // Red for >= 0.8
+      'rgba(255, 165, 0, 0.7)', // Orange for >= 0.6
+      'rgba(255, 255, 0, 0.7)', // Yellow for >= 0.4
+      'rgba(0, 255, 0, 0.7)',   // Green for < 0.4
     ].map((color, index) => (
             <View
               key={index}
