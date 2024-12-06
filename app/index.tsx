@@ -751,7 +751,7 @@ const styles = StyleSheet.create({
   aboutButton: {
     position: 'absolute',
     top: 40,
-    right: 20,
+    left: 20,
     zIndex: 10,
     padding: 8,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
