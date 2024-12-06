@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Dimensions, TouchableOpacity, Text, ScrollView, Modal } from 'react-native';
 import MapView, { Marker, Overlay, Polygon, UrlTile } from 'react-native-maps';
 import axios from 'axios';
+import { Platform } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format, parseISO } from 'date-fns';
 // import Geolocation from 'react-native-geolocation-service';
-import { PermissionsAndroid, Platform } from 'react-native';
+import { PermissionsAndroid } from 'react-native';
 import * as Location from 'expo-location';
+import { Ionicons } from '@expo/vector-icons';
 
 interface TurbulenceFeature {
   type: 'Feature';
@@ -64,6 +66,7 @@ export default function Home() {
   const [animationPlaying, setAnimationPlaying] = useState(false);
   const [animationInterval, setAnimationInterval] = useState<NodeJS.Timeout | null>(null);
 
+  const [showAboutModal, setShowAboutModal] = useState(false);
 
   useEffect(() => {
     console.log('Selected layer changed:', selectedLayer);
@@ -229,8 +232,74 @@ export default function Home() {
     // });
   }, [selectedLayer, selectedTime, availableTimes, groupedTimes, turbulenceData]);
 
+  const AboutModal = () => (
+    <Modal
+      visible={showAboutModal}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => setShowAboutModal(false)}
+    >
+      <TouchableOpacity
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={() => setShowAboutModal(false)}
+      >
+        <View 
+          style={styles.aboutModalContent}
+          onStartShouldSetResponder={() => true}
+          onTouchEnd={(e) => e.stopPropagation()}
+        >
+          <Text style={styles.aboutTitle}>About AeroPulse</Text>
+          <ScrollView style={styles.aboutScroll}>
+            <Text style={styles.aboutText}>
+              AeroPulse provides real-time turbulence forecasting data for aviation professionals and enthusiasts.
+            </Text>
+            
+            <Text style={styles.aboutSubtitle}>Features:</Text>
+            <Text style={styles.aboutText}>
+              • Multiple altitude layers from 30,000 to 41,000 feet{'\n'}
+              • Real-time turbulence probability visualization{'\n'}
+              • Grid and polygon overlay options{'\n'}
+              • Time-based forecast selection
+            </Text>
+            
+            <Text style={styles.aboutSubtitle}>How to Use:</Text>
+            <Text style={styles.aboutText}>
+              1. Select your desired altitude layer{'\n'}
+              2. Toggle between grid and polygon views{'\n'}
+              3. Use the time selector to view different forecasts{'\n'}
+              4. Interpret the color-coded probability scale:
+            </Text>
+            <Text style={styles.aboutText}>
+              🔴 Red: High probability{'\n'}
+              🟠 Orange: Moderate-high probability{'\n'}
+              🟡 Yellow: Moderate probability{'\n'}
+              🟢 Green: Low probability
+            </Text>
+          </ScrollView>
+          
+          <TouchableOpacity 
+            style={styles.closeButton}
+            onPress={() => setShowAboutModal(false)}
+          >
+            <Text style={styles.closeButtonText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+
   return (
     <View style={styles.container}>
+      <TouchableOpacity 
+        style={styles.aboutButton}
+        onPress={() => setShowAboutModal(true)}
+      >
+        <Ionicons name="information-circle" size={28} color="white" />
+      </TouchableOpacity>
+
+      <AboutModal />
+
     {/* Gradient Legend */}
     <View style={styles.legendContainer}>
         <Text style={styles.legendTitle}>Probability</Text>
@@ -678,5 +747,57 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 2,
     borderColor: '#FFFFFF',
+  },
+  aboutButton: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 10,
+    padding: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 20,
+  },
+  aboutModalContent: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 20,
+    width: '90%',
+    maxHeight: '80%',
+    alignSelf: 'center',
+  },
+  aboutTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center',
+    color: '#007AFF',
+  },
+  aboutSubtitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 15,
+    marginBottom: 10,
+    color: '#333',
+  },
+  aboutText: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#444',
+    marginBottom: 10,
+  },
+  aboutScroll: {
+    maxHeight: '80%',
+  },
+  closeButton: {
+    marginTop: 20,
+    padding: 12,
+    backgroundColor: '#007AFF',
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
