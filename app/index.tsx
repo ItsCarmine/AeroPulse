@@ -97,7 +97,6 @@ export default function Home() {
   const [availableTimes, setAvailableTimes] = useState<string[]>([]);
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showGridLayer, setShowGridLayer] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [groupedTimes, setGroupedTimes] = useState<{ [key: string]: string[] }>({});
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -300,7 +299,7 @@ export default function Home() {
           longitudeDelta: 50,
         }}
       >
-        {showGridLayer && selectedTime && selectedLayer && (
+        {selectedTime && selectedLayer && (
           <UrlTile
             key={`${selectedLayer.gridLayer}-${selectedTime}`}
             urlTemplate={`https://realearth.ssec.wisc.edu/api/image?products=${selectedLayer.gridLayer}&time=${selectedTime}&x={x}&y={y}&z={z}`}
@@ -349,15 +348,6 @@ export default function Home() {
             </TouchableOpacity>
           ))}
         </ScrollView>
-
-        <View style={styles.toggleContainer}>
-          <TouchableOpacity
-            style={[styles.toggleButton, showGridLayer && styles.activeToggle]}
-            onPress={() => setShowGridLayer(!showGridLayer)}
-          >
-            <Text style={styles.toggleText}>Grid</Text>
-          </TouchableOpacity>
-        </View>
 
         <TouchableOpacity
           style={styles.timeButton}
@@ -504,23 +494,6 @@ const styles = StyleSheet.create({
   },
   selectedLayerText: {
     color: '#fff',
-  },
-  toggleContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 10,
-  },
-  toggleButton: {
-    padding: 10,
-    marginHorizontal: 5,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 5,
-  },
-  activeToggle: {
-    backgroundColor: '#007AFF',
-  },
-  toggleText: {
-    color: '#333',
   },
   timeButton: {
     padding: 10,
