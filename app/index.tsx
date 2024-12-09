@@ -2,12 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Dimensions, TouchableOpacity, Text, ScrollView, Modal } from 'react-native';
 import MapView, { Marker, Overlay, Polygon, UrlTile } from 'react-native-maps';
 import axios from 'axios';
-import { Platform } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { format, parseISO } from 'date-fns';
-// import Geolocation from 'react-native-geolocation-service';
-import { PermissionsAndroid } from 'react-native';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -62,16 +56,12 @@ export default function Home() {
   const [groupedTimes, setGroupedTimes] = useState<{ [key: string]: string[] }>({});
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
-  // Animation Creation
-  const [animationPlaying, setAnimationPlaying] = useState(false);
-  const [animationInterval, setAnimationInterval] = useState<NodeJS.Timeout | null>(null);
-
   const [showAboutModal, setShowAboutModal] = useState(false);
 
-  useEffect(() => {
-    console.log('Selected layer changed:', selectedLayer);
-    fetchTimes();
-  }, [selectedLayer]);
+  // useEffect(() => {
+  //   console.log('Selected layer changed:', selectedLayer);
+  //   fetchTimes();
+  // }, [selectedLayer]);
 
   useEffect(() => {
     if (availableTimes.length > 0) {
@@ -85,8 +75,18 @@ export default function Home() {
         return acc;
       }, {} as { [key: string]: string[] });
       // console.log('Grouped times:', grouped);
-      setGroupedTimes(grouped);
-      setSelectedDate(Object.keys(grouped)[0]);
+      // setGroupedTimes(grouped);
+      const sortedDates = Object.keys(grouped).sort((a, b) => parseInt(b) - parseInt(a));
+      const sortedGrouped: { [key: string]: string[] } = {};
+      
+      sortedDates.forEach(date => {
+        // Sort times within each date in reverse chronological order
+        sortedGrouped[date] = grouped[date].sort((a, b) => parseInt(b.substring(9)) - parseInt(a.substring(9)));
+      });
+      
+      setGroupedTimes(sortedGrouped);
+      setSelectedDate(sortedDates[0]);
+      // setSelectedDate(Object.keys(grouped)[0]);
     }
   }, [availableTimes]);
 
@@ -116,27 +116,6 @@ export default function Home() {
       console.warn('Location permission error:', err);
     }
   };
-  
- 
-// const watchLocation = () => {
-//   Geolocation.watchPosition(
-//     (position) => {
-//       setCurrentLocation({
-//         latitude: position.coords.latitude,
-//         longitude: position.coords.longitude
-//       });
-//     },
-//     (error) => {
-//       console.error('Location error:', error);
-//     },
-//     {
-//       enableHighAccuracy: true,
-//       distanceFilter: 10,  // meters
-//       interval: 5000,      // 5 seconds
-//       fastestInterval: 2000,  // 2 seconds
-//     }
-//   );
-// };
 
   const fetchTimes = async () => {
     try {
@@ -359,19 +338,6 @@ export default function Home() {
             strokeWidth={1}
           />
         ))}
-        {/* {currentLocation && (
-        <Marker
-          coordinate={{
-            latitude: Number(currentLocation.latitude),
-            longitude: Number(currentLocation.longitude)
-          }}
-          anchor={{ x: 0.5, y: 0.5 }}
-        >
-          <View style={styles.locationDot}>
-            <View style={styles.locationDotInner} />
-          </View>
-        </Marker>
-      )} */}
       </MapView>
 
       <View style={styles.controls}>
@@ -384,7 +350,7 @@ export default function Home() {
                 selectedLayer.id === layer.id && styles.selectedLayer
               ]}
               onPress={async () => {  // Make this async
-                // console.log('Switching to layer:', layer);
+                
                 // Clear states first
                 setTurbulenceData(null);
                 setSelectedTime('');
@@ -475,7 +441,9 @@ export default function Home() {
                     showsHorizontalScrollIndicator={false}
                     style={styles.dateScroller}
                   >
-                    {Object.keys(groupedTimes).map(date => (
+                    {Object.keys(groupedTimes)
+                    .sort((a, b) => parseInt(b) - parseInt(a)) 
+                    .map(date => (
                       <TouchableOpacity
                         key={date}
                         style={[
