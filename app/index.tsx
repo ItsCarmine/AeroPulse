@@ -11,6 +11,57 @@ interface LayerConfig {
   gridLayer: string;
 }
 
+interface MapStyleConfig {
+  id: string;
+  name: string;
+  style: any[];
+}
+
+// Define the map styles
+const MAP_STYLES: MapStyleConfig[] = [
+  {
+    id: 'simple',
+    name: 'Clean and Simple',
+    style: [
+      {
+        "elementType": "geometry",
+        "stylers": [{ "color": "#f5f5f5" }]
+      },
+      {
+        "elementType": "labels.icon",
+        "stylers": [{ "visibility": "off" }]
+      },
+      {
+        "elementType": "labels.text.fill",
+        "stylers": [{ "color": "#616161" }]
+      },
+      {
+        "elementType": "labels.text.stroke",
+        "stylers": [{ "color": "#f5f5f5" }]
+      },
+      {
+        "featureType": "administrative.land_parcel",
+        "stylers": [{ "visibility": "off" }]
+      },
+      {
+        "featureType": "water",
+        "elementType": "geometry",
+        "stylers": [{ "color": "#e9e9e9" }]
+      },
+      {
+        "featureType": "water",
+        "elementType": "labels.text.fill",
+        "stylers": [{ "color": "#9e9e9e" }]
+      }
+    ]
+  },
+  {
+    id: 'default',
+    name: 'Realistic (Google Map Original)',
+    style: [] // Empty array for default Google Maps style
+  }
+];
+
 const AVAILABLE_LAYERS: LayerConfig[] = [
   { id: '30-31', name: '30-31 kft', gridLayer: 'turb-grid-30-31-kft' },
   { id: '32-33', name: '32-33 kft', gridLayer: 'turb-grid-32-33-kft' },
@@ -97,11 +148,13 @@ export default function Home() {
   const [availableTimes, setAvailableTimes] = useState<string[]>([]);
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showGridLayer, setShowGridLayer] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [groupedTimes, setGroupedTimes] = useState<{ [key: string]: string[] }>({});
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   const [showAboutModal, setShowAboutModal] = useState(false);
+  const [selectedMapStyle, setSelectedMapStyle] = useState<MapStyleConfig>(MAP_STYLES[0]);
 
   useEffect(() => {
     if (availableTimes.length > 0) {
@@ -291,7 +344,7 @@ export default function Home() {
       <MapView
         style={styles.map}
         showsUserLocation={true}
-        customMapStyle={mapStyle}
+        customMapStyle={selectedMapStyle.style}
         initialRegion={{
           latitude: 37.0902,
           longitude: -95.7129,
@@ -299,7 +352,7 @@ export default function Home() {
           longitudeDelta: 50,
         }}
       >
-        {selectedTime && selectedLayer && (
+        {showGridLayer && selectedTime && selectedLayer && (
           <UrlTile
             key={`${selectedLayer.gridLayer}-${selectedTime}`}
             urlTemplate={`https://realearth.ssec.wisc.edu/api/image?products=${selectedLayer.gridLayer}&time=${selectedTime}&x={x}&y={y}&z={z}`}
@@ -344,6 +397,26 @@ export default function Home() {
                 selectedLayer.id === layer.id && styles.selectedLayerText
               ]}>
                 {layer.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mapStyleRow}>
+          {MAP_STYLES.map((style) => (
+            <TouchableOpacity
+              key={style.id}
+              style={[
+                styles.layerButton,
+                selectedMapStyle.id === style.id && styles.selectedLayer
+              ]}
+              onPress={() => setSelectedMapStyle(style)}
+            >
+              <Text style={[
+                styles.layerButtonText,
+                selectedMapStyle.id === style.id && styles.selectedLayerText
+              ]}>
+                {style.name}
               </Text>
             </TouchableOpacity>
           ))}
@@ -671,5 +744,8 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  mapStyleRow: {
+    marginTop: 10,
   },
 });
