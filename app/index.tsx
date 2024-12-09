@@ -1,92 +1,129 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Dimensions, TouchableOpacity, Text, ScrollView, Modal } from 'react-native';
-import MapView, { Marker, Overlay, Polygon, UrlTile } from 'react-native-maps';
+import { StyleSheet, View, Dimensions, TouchableOpacity, Text, ScrollView, Modal, Image } from 'react-native';
+import MapView, { Marker, Overlay, UrlTile } from 'react-native-maps';
 import axios from 'axios';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
-
-interface TurbulenceFeature {
-  type: 'Feature';
-  properties: {
-    PROBABILITY: number;
-    ID: string;
-    TS_INGESTED: number;
-    RE_TOOLTIP: string;
-    RE_PRODUCT_ID: string;
-    RE_PRODUCT_NAME: string;
-    RE_ID: string;
-  };
-  geometry: {
-    type: 'Polygon';
-    coordinates: [number, number][][];
-  };
-}
-
-interface TurbulenceData {
-  type: 'FeatureCollection';
-  features: TurbulenceFeature[];
-}
 
 interface LayerConfig {
   id: string;
   name: string;
   gridLayer: string;
-  polyLayer: string;
 }
 
 const AVAILABLE_LAYERS: LayerConfig[] = [
-  { id: '30-31', name: '30-31 kft', gridLayer: 'turb-grid-30-31-kft', polyLayer: 'turb-poly-30-31-kft' },
-  { id: '32-33', name: '32-33 kft', gridLayer: 'turb-grid-32-33-kft', polyLayer: 'turb-poly-32-33-kft' },
-  { id: '34-35', name: '34-35 kft', gridLayer: 'turb-grid-34-35-kft', polyLayer: 'turb-poly-34-35-kft' },
-  { id: '36-37', name: '36-37 kft', gridLayer: 'turb-grid-36-37-kft', polyLayer: 'turb-poly-36-37-kft' },
-  { id: '38-39', name: '38-39 kft', gridLayer: 'turb-grid-38-39-kft', polyLayer: 'turb-poly-38-39-kft' },
-  { id: '40-41', name: '40-41 kft', gridLayer: 'turb-grid-40-41-kft', polyLayer: 'turb-poly-40-41-kft' },
-  { id: 'max', name: 'Max Value', gridLayer: 'turb-grid-Max-Value-30-41-kft', polyLayer: 'turb-poly-Max-Value-30-41-kft' },
+  { id: '30-31', name: '30-31 kft', gridLayer: 'turb-grid-30-31-kft' },
+  { id: '32-33', name: '32-33 kft', gridLayer: 'turb-grid-32-33-kft' },
+  { id: '34-35', name: '34-35 kft', gridLayer: 'turb-grid-34-35-kft' },
+  { id: '36-37', name: '36-37 kft', gridLayer: 'turb-grid-36-37-kft' },
+  { id: '38-39', name: '38-39 kft', gridLayer: 'turb-grid-38-39-kft' },
+  { id: '40-41', name: '40-41 kft', gridLayer: 'turb-grid-40-41-kft' },
+  { id: 'max', name: 'Max Value', gridLayer: 'turb-grid-Max-Value-30-41-kft' },
+];
+
+// Add this custom map style configuration
+const mapStyle = [
+  {
+    "elementType": "geometry",
+    "stylers": [
+      {
+        "color": "#f5f5f5"
+      }
+    ]
+  },
+  {
+    "elementType": "labels.icon",
+    "stylers": [
+      {
+        "visibility": "off"
+      }
+    ]
+  },
+  {
+    "elementType": "labels.text.fill",
+    "stylers": [
+      {
+        "color": "#616161"
+      }
+    ]
+  },
+  {
+    "elementType": "labels.text.stroke",
+    "stylers": [
+      {
+        "color": "#f5f5f5"
+      }
+    ]
+  },
+  {
+    "featureType": "administrative.land_parcel",
+    "stylers": [
+      {
+        "visibility": "off"
+      }
+    ]
+  },
+  {
+    "featureType": "administrative.land_parcel",
+    "elementType": "labels.text.fill",
+    "stylers": [
+      {
+        "color": "#bdbdbd"
+      }
+    ]
+  },
+  {
+    "featureType": "water",
+    "elementType": "geometry",
+    "stylers": [
+      {
+        "color": "#e9e9e9"
+      }
+    ]
+  },
+  {
+    "featureType": "water",
+    "elementType": "labels.text.fill",
+    "stylers": [
+      {
+        "color": "#9e9e9e"
+      }
+    ]
+  }
 ];
 
 export default function Home() {
-  const [turbulenceData, setTurbulenceData] = useState<TurbulenceData | null>(null);
   const [selectedLayer, setSelectedLayer] = useState<LayerConfig>(AVAILABLE_LAYERS[0]);
   const [availableTimes, setAvailableTimes] = useState<string[]>([]);
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showGridLayer, setShowGridLayer] = useState(true);
-  const [showPolygons, setShowPolygons] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [groupedTimes, setGroupedTimes] = useState<{ [key: string]: string[] }>({});
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   const [showAboutModal, setShowAboutModal] = useState(false);
 
-  // useEffect(() => {
-  //   console.log('Selected layer changed:', selectedLayer);
-  //   fetchTimes();
-  // }, [selectedLayer]);
-
   useEffect(() => {
     if (availableTimes.length > 0) {
-      // console.log('Grouping times:', availableTimes);
       const grouped = availableTimes.reduce((acc, time) => {
-        const date = time.substring(0, 8); // Get YYYYMMDD
+        const date = time.substring(0, 8);
         if (!acc[date]) {
           acc[date] = [];
         }
         acc[date].push(time);
         return acc;
       }, {} as { [key: string]: string[] });
-      // console.log('Grouped times:', grouped);
-      // setGroupedTimes(grouped);
+      
       const sortedDates = Object.keys(grouped).sort((a, b) => parseInt(b) - parseInt(a));
       const sortedGrouped: { [key: string]: string[] } = {};
       
       sortedDates.forEach(date => {
-        // Sort times within each date in reverse chronological order
         sortedGrouped[date] = grouped[date].sort((a, b) => parseInt(b.substring(9)) - parseInt(a.substring(9)));
       });
       
       setGroupedTimes(sortedGrouped);
       setSelectedDate(sortedDates[0]);
-      // setSelectedDate(Object.keys(grouped)[0]);
     }
   }, [availableTimes]);
 
@@ -120,7 +157,6 @@ export default function Home() {
   const fetchTimes = async () => {
     try {
       const productId = selectedLayer.gridLayer;
-      // console.log('Fetching times for product:', productId);
       
       const url = `https://realearth.ssec.wisc.edu/api/times?products=${productId}`;
       const response = await axios.get(url);
@@ -128,14 +164,11 @@ export default function Home() {
       let times: string[] = [];
       if (response.data && response.data[productId]) {
         times = response.data[productId];
-        // console.log('Found times for layer:', times.length);
         
         setAvailableTimes(times);
         if (times.length > 0) {
           const latestTime = times[times.length - 1];
-          // console.log('Setting latest time:', latestTime);
           setSelectedTime(latestTime);
-          fetchTurbulenceData(latestTime);
         }
       }
     } catch (error) {
@@ -144,28 +177,12 @@ export default function Home() {
   };
 
   useEffect(() => {
-    // console.log('Current location updated:', currentLocation);
   }, [currentLocation]);
 
   useEffect(() => {
-    // console.log('Available times updated:', availableTimes);
     if (availableTimes.length > 0) {
-      // console.log('First available time:', availableTimes[0]);
     }
   }, [availableTimes]);
-
-  const fetchTurbulenceData = async (time: string) => {
-    try {
-      // console.log('Fetching turbulence data for:', selectedLayer.polyLayer, time);
-      const response = await axios.get(
-        `https://realearth.ssec.wisc.edu/api/geojson?products=${selectedLayer.polyLayer}&time=${time}`
-      );
-      // console.log('Turbulence data received:', response.data);
-      setTurbulenceData(response.data);
-    } catch (error) {
-      console.error('Error fetching turbulence data:', error);
-    }
-  };
 
   const formatTime = (timeString: string) => {
     const year = timeString.substring(0, 4);
@@ -183,33 +200,18 @@ export default function Home() {
     return `${year}-${month}-${day}`;
   };
 
-  const getPolygonColor = (probability: number) => {
-    // Color scale based on probability
-    if (probability >= 0.8) return 'rgba(255, 0, 0, 0.5)';
-    if (probability >= 0.6) return 'rgba(255, 165, 0, 0.5)';
-    if (probability >= 0.4) return 'rgba(255, 255, 0, 0.5)';
-    return 'rgba(0, 255, 0, 0.5)';
-  };
-
   // Add this useEffect to reset states when layer changes
   useEffect(() => {
-    setShowDatePicker(false); // Close the picker when changing layers
-    setAvailableTimes([]); // Clear available times
-    setGroupedTimes({}); // Clear grouped times
-    setSelectedDate(null); // Clear selected date
-    fetchTimes(); // Fetch new times for the selected layer
+    setShowDatePicker(false);
+    setAvailableTimes([]);
+    setGroupedTimes({});
+    setSelectedDate(null);
+    fetchTimes();
   }, [selectedLayer]);
 
   // Add this useEffect to monitor state changes
   useEffect(() => {
-    // console.log('State update:', {
-    //   selectedLayer: selectedLayer.id,
-    //   selectedTime,
-    //   availableTimesCount: availableTimes.length,
-    //   hasGroupedTimes: Object.keys(groupedTimes).length > 0,
-    //   hasTurbulenceData: turbulenceData !== null
-    // });
-  }, [selectedLayer, selectedTime, availableTimes, groupedTimes, turbulenceData]);
+  }, [selectedLayer, selectedTime, availableTimes, groupedTimes]);
 
   const AboutModal = () => (
     <Modal
@@ -249,12 +251,6 @@ export default function Home() {
               3. Use the time selector to view different forecasts{'\n'}
               4. Interpret the color-coded probability scale:
             </Text>
-            <Text style={styles.aboutText}>
-              🔴 Red: High probability{'\n'}
-              🟠 Orange: Moderate-high probability{'\n'}
-              🟡 Yellow: Moderate probability{'\n'}
-              🟢 Green: Low probability
-            </Text>
           </ScrollView>
           
           <TouchableOpacity 
@@ -279,37 +275,24 @@ export default function Home() {
 
       <AboutModal />
 
-    {/* Gradient Legend */}
-    <View style={styles.legendContainer}>
-        <Text style={styles.legendTitle}>Probability</Text>
-
-        {/* Custom Color Legend Bar */}
-        <View style={styles.legendBar}>
-          {[
-      'rgba(255, 0, 0, 0.7)',   // Red for >= 0.8
-      'rgba(255, 165, 0, 0.7)', // Orange for >= 0.6
-      'rgba(255, 255, 0, 0.7)', // Yellow for >= 0.4
-      'rgba(0, 255, 0, 0.7)',   // Green for < 0.4
-    ].map((color, index) => (
-            <View
-              key={index}
-              style={[styles.legendSegment, { backgroundColor: color }]}
-            />
-          ))}
-        </View>
-
-        {/* Labels */}
-        <View style={styles.labelsContainer}>
-          <Text style={styles.label}>High</Text>
-          <Text style={styles.label}>Moderate</Text>
-          <Text style={styles.label}>Low</Text>
-        </View>
+      {/* API Legend Image */}
+      <View style={styles.legendContainer}>
+        {selectedLayer && (
+          <Image
+            source={{ 
+              uri: `https://realearth.ssec.wisc.edu/api/legend?products=${selectedLayer.gridLayer}`
+            }}
+            style={styles.legendImage}
+            resizeMode="contain"
+          />
+        )}
       </View>
 
-    {/* Map */}
+      {/* Map */}
       <MapView
         style={styles.map}
         showsUserLocation={true}
+        customMapStyle={mapStyle}
         initialRegion={{
           latitude: 37.0902,
           longitude: -95.7129,
@@ -325,19 +308,6 @@ export default function Home() {
             opacity={0.6}
           />
         )}
-        
-        {showPolygons && turbulenceData?.features?.map((feature, index) => (
-          <Polygon
-            key={index}
-            coordinates={feature.geometry.coordinates[0].map(coord => ({
-              latitude: coord[1],
-              longitude: coord[0]
-            }))}
-            fillColor={getPolygonColor(feature.properties.PROBABILITY)}
-            strokeColor="black"
-            strokeWidth={1}
-          />
-        ))}
       </MapView>
 
       <View style={styles.controls}>
@@ -349,32 +319,20 @@ export default function Home() {
                 styles.layerButton,
                 selectedLayer.id === layer.id && styles.selectedLayer
               ]}
-              onPress={async () => {  // Make this async
-                
-                // Clear states first
-                setTurbulenceData(null);
-                setSelectedTime('');
-                setAvailableTimes([]);
-                setGroupedTimes({});
-                setSelectedDate(null);
-                
-                // Then set new layer
+              onPress={async () => {
                 setSelectedLayer(layer);
                 
-                // Directly fetch times for the new layer
                 try {
                   const url = `https://realearth.ssec.wisc.edu/api/times?products=${layer.gridLayer}`;
                   const response = await axios.get(url);
                   
                   if (response.data && response.data[layer.gridLayer]) {
                     const times = response.data[layer.gridLayer];
-                    // console.log('New layer times:', times);
                     setAvailableTimes(times);
                     
                     if (times.length > 0) {
                       const latestTime = times[times.length - 1];
                       setSelectedTime(latestTime);
-                      fetchTurbulenceData(latestTime);
                     }
                   }
                 } catch (error) {
@@ -398,12 +356,6 @@ export default function Home() {
             onPress={() => setShowGridLayer(!showGridLayer)}
           >
             <Text style={styles.toggleText}>Grid</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.toggleButton, showPolygons && styles.activeToggle]}
-            onPress={() => setShowPolygons(!showPolygons)}
-          >
-            <Text style={styles.toggleText}>Polygons</Text>
           </TouchableOpacity>
         </View>
 
@@ -477,7 +429,6 @@ export default function Home() {
                             ]}
                             onPress={() => {
                               setSelectedTime(time);
-                              fetchTurbulenceData(time);
                               setShowDatePicker(false);
                             }}
                           >
@@ -516,39 +467,19 @@ const styles = StyleSheet.create({
     height: Dimensions.get('window').height,
   },
   legendContainer: {
-    position: 'absolute', // Allow legend to hover
-    top: 20, // Distance from the bottom of the map
-    left: Dimensions.get('window').width / 2 - 100, // Center horizontally
-    width: 200, // Match legend bar width
-    zIndex: 10, // Ensure it's above the map
-    alignItems: 'center',
-    backgroundColor: 'transparent', // Transparent background
-  },
-  legendTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 5,
-    color: '#FFF',
-  },
-  legendBar: {
-    flexDirection: 'row',
+    position: 'absolute',
+    top: 10,
+    left: Dimensions.get('window').width / 2 - 100,
     width: 200,
-    height: 20,
-    borderRadius: 10,
-    overflow: 'hidden',
+    height: 40,
+    zIndex: 10,
+    backgroundColor: 'white',
+    borderRadius: 5,
+    padding: 5,
   },
-  legendSegment: {
-    flex: 1,
-  },
-  labelsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: 200,
-    marginTop: 5,
-  },
-  label: {
-    fontSize: 12,
-    color: '#FFF',
+  legendImage: {
+    width: '100%',
+    height: '100%',
   },
   controls: {
     position: 'absolute',
@@ -718,7 +649,7 @@ const styles = StyleSheet.create({
   },
   aboutButton: {
     position: 'absolute',
-    top: 40,
+    top: 10,
     left: 20,
     zIndex: 10,
     padding: 8,
