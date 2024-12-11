@@ -3,6 +3,7 @@ import { StyleSheet, View, Dimensions, TouchableOpacity, Text, ScrollView, Modal
 import MapView, { Marker, Overlay, UrlTile } from 'react-native-maps';
 import axios from 'axios';
 import * as Location from 'expo-location';
+import * as Notifications from 'expo-notifications';
 import { Ionicons } from '@expo/vector-icons';
 
 interface LayerConfig {
@@ -148,9 +149,41 @@ export default function Home() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [groupedTimes, setGroupedTimes] = useState<{ [key: string]: string[] }>({});
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [customLocation, setCustomLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [selectedMapStyle, setSelectedMapStyle] = useState<MapStyleConfig>(MAP_STYLES[0]);
+
+  const requestLocationPermission = async () => {
+  try {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+
+    if (status !== 'granted') {
+      alert('Permission to access location was denied. Please enable it in your device settings.');
+      return;
+    }
+
+    Location.watchPositionAsync(
+      {
+        accuracy: Location.Accuracy.High,
+        timeInterval: 1000, 
+        distanceInterval: 1,
+      },
+      (location) => {
+        setCurrentLocation({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        });
+      }
+    );
+  } catch (err) {
+    console.error('Error requesting location permission:', err);
+  }
+};
+
+  useEffect(() => {
+    requestLocationPermission();
+  }, []);
 
   useEffect(() => {
     if (availableTimes.length > 0) {
@@ -162,76 +195,58 @@ export default function Home() {
         acc[date].push(time);
         return acc;
       }, {} as { [key: string]: string[] });
-      
+
       const sortedDates = Object.keys(grouped).sort((a, b) => parseInt(b) - parseInt(a));
       const sortedGrouped: { [key: string]: string[] } = {};
-      
-      sortedDates.forEach(date => {
+
+      sortedDates.forEach((date) => {
         sortedGrouped[date] = grouped[date].sort((a, b) => parseInt(b.substring(9)) - parseInt(a.substring(9)));
       });
-      
+
       setGroupedTimes(sortedGrouped);
       setSelectedDate(sortedDates[0]);
     }
   }, [availableTimes]);
 
-  useEffect(() => {
-    requestLocationPermission();
-  }, []);
-  
-  const requestLocationPermission = async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        Location.watchPositionAsync(
-          {
-            accuracy: Location.Accuracy.High,
-            timeInterval: 1000,
-            distanceInterval: 1
-          },
-          (location) => {
-            setCurrentLocation({
-              latitude: location.coords.latitude,
-              longitude: location.coords.longitude
-            });
-          }
-        );
-      }
-    } catch (err) {
-      console.warn('Location permission error:', err);
-    }
-  };
-
+  // Fetch times for the selected layer
   const fetchTimes = async () => {
     try {
       const productId = selectedLayer.gridLayer;
-      
       const url = `https://realearth.ssec.wisc.edu/api/times?products=${productId}`;
       const response = await axios.get(url);
-      
-      let times: string[] = [];
+
       if (response.data && response.data[productId]) {
-        times = response.data[productId];
-        
+        const times: string[] = response.data[productId];
         setAvailableTimes(times);
+
         if (times.length > 0) {
           const latestTime = times[times.length - 1];
           setSelectedTime(latestTime);
         }
+      } else {
+        console.warn('No times data available for the selected layer.');
+        setAvailableTimes([]);
       }
     } catch (error) {
       console.error('Error fetching times:', error);
     }
   };
 
-  useEffect(() => {
-  }, [currentLocation]);
+  const handleMapPress = (event: any) => {
+    const { latitude, longitude } = event.nativeEvent.coordinate;
+    setCustomLocation({ latitude, longitude });
+  };
 
+  // Reset states when the selected layer changes
   useEffect(() => {
-    if (availableTimes.length > 0) {
-    }
-  }, [availableTimes]);
+    setShowDatePicker(false);
+    setAvailableTimes([]);
+    setGroupedTimes({});
+    setSelectedDate(null);
+    fetchTimes();
+  }, [selectedLayer]);
 
+  // Format functions
   const formatTime = (timeString: string) => {
     const year = timeString.substring(0, 4);
     const month = timeString.substring(4, 6);
@@ -248,19 +263,6 @@ export default function Home() {
     return `${year}-${month}-${day}`;
   };
 
-  // Add this useEffect to reset states when layer changes
-  useEffect(() => {
-    setShowDatePicker(false);
-    setAvailableTimes([]);
-    setGroupedTimes({});
-    setSelectedDate(null);
-    fetchTimes();
-  }, [selectedLayer]);
-
-  // Add this useEffect to monitor state changes
-  useEffect(() => {
-  }, [selectedLayer, selectedTime, availableTimes, groupedTimes]);
-
   const AboutModal = () => (
     <Modal
       visible={showAboutModal}
@@ -273,7 +275,7 @@ export default function Home() {
         activeOpacity={1}
         onPress={() => setShowAboutModal(false)}
       >
-        <View 
+        <View
           style={styles.aboutModalContent}
           onStartShouldSetResponder={() => true}
           onTouchEnd={(e) => e.stopPropagation()}
@@ -283,7 +285,7 @@ export default function Home() {
             <Text style={styles.aboutText}>
               AeroPulse provides real-time turbulence forecasting data for aviation professionals and enthusiasts.
             </Text>
-            
+
             <Text style={styles.aboutSubtitle}>Features:</Text>
             <Text style={styles.aboutText}>
               • Multiple altitude layers from 30,000 to 41,000 feet{'\n'}
@@ -291,17 +293,17 @@ export default function Home() {
               • Grid and polygon overlay options{'\n'}
               • Time-based forecast selection
             </Text>
-            
+
             <Text style={styles.aboutSubtitle}>How to Use:</Text>
             <Text style={styles.aboutText}>
               1. Select your desired altitude layer{'\n'}
-              2. Toggle between grid and polygon views{'\n'}
+              2. Toggle between default and terrain Google Maps styles{'\n'}
               3. Use the time selector to view different forecasts{'\n'}
               4. Interpret the color-coded probability scale:
             </Text>
           </ScrollView>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.closeButton}
             onPress={() => setShowAboutModal(false)}
           >
@@ -314,7 +316,7 @@ export default function Home() {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.aboutButton}
         onPress={() => setShowAboutModal(true)}
       >
@@ -337,7 +339,7 @@ export default function Home() {
       </View>
 
       {/* Map */}
-      <MapView
+<MapView
   style={styles.map}
   showsUserLocation={true}
   customMapStyle={selectedMapStyle.style}
@@ -349,7 +351,31 @@ export default function Home() {
   }}
   minZoomLevel={2} // Set minimum zoom to prevent invalid tile requests
   maxZoomLevel={12} // Adjust to match RealEarth supported zoom levels
+  onPress={handleMapPress} // Allow users to set a custom location by tapping the map
 >
+  {/* Current Location Marker */}
+  {currentLocation && (
+    <Marker
+      coordinate={currentLocation}
+      title="Your Location"
+      description="This is your current location."
+    >
+      <View style={styles.locationDot}>
+        <View style={styles.locationDotInner} />
+      </View>
+    </Marker>
+  )}
+
+  {/* Custom Location Marker */}
+  {customLocation && (
+    <Marker
+      coordinate={customLocation}
+      title="Custom Location"
+      description="This is your selected location."
+    />
+  )}
+
+  {/* RealEarth Grid Layer */}
   {showGridLayer && selectedTime && selectedLayer && (
     <UrlTile
       key={`${selectedLayer.gridLayer}-${selectedTime}`}
@@ -363,155 +389,169 @@ export default function Home() {
 </MapView>
 
       <View style={styles.controls}>
+        
+        {currentLocation && (
+    <Text style={styles.infoText}>
+      Current Location: {currentLocation.latitude.toFixed(6)}, {currentLocation.longitude.toFixed(6)}
+    </Text>
+  )}
+  {customLocation && (
+    <Text style={styles.infoText}>
+      Custom Location: {customLocation.latitude.toFixed(6)}, {customLocation.longitude.toFixed(6)}
+    </Text>
+  )}
+        
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {AVAILABLE_LAYERS.map((layer) => (
-            <TouchableOpacity
-              key={layer.id}
-              style={[
-                styles.layerButton,
-                selectedLayer.id === layer.id && styles.selectedLayer
-              ]}
-              onPress={async () => {
-                setSelectedLayer(layer);
-                
-                try {
-                  const url = `https://realearth.ssec.wisc.edu/api/times?products=${layer.gridLayer}`;
-                  const response = await axios.get(url);
-                  
-                  if (response.data && response.data[layer.gridLayer]) {
-                    const times = response.data[layer.gridLayer];
-                    setAvailableTimes(times);
-                    
-                    if (times.length > 0) {
-                      const latestTime = times[times.length - 1];
-                      setSelectedTime(latestTime);
-                    }
-                  }
-                } catch (error) {
-                  console.error('Error fetching times for new layer:', error);
-                }
-              }}
+    {AVAILABLE_LAYERS.map((layer) => (
+      <TouchableOpacity
+        key={layer.id}
+        style={[
+          styles.layerButton,
+          selectedLayer.id === layer.id && styles.selectedLayer,
+        ]}
+        onPress={async () => {
+          setSelectedLayer(layer);
+          try {
+            const url = `https://realearth.ssec.wisc.edu/api/times?products=${layer.gridLayer}`;
+            const response = await axios.get(url);
+            if (response.data && response.data[layer.gridLayer]) {
+              const times = response.data[layer.gridLayer];
+              setAvailableTimes(times);
+              if (times.length > 0) {
+                const latestTime = times[times.length - 1];
+                setSelectedTime(latestTime);
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching times for new layer:', error);
+          }
+        }}
             >
-              <Text style={[
-                styles.layerButtonText,
-                selectedLayer.id === layer.id && styles.selectedLayerText
-              ]}>
-                {layer.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mapStyleRow}>
-          {MAP_STYLES.map((style) => (
-            <TouchableOpacity
-              key={style.id}
-              style={[
-                styles.layerButton,
-                selectedMapStyle.id === style.id && styles.selectedLayer
-              ]}
-              onPress={() => setSelectedMapStyle(style)}
-            >
-              <Text style={[
-                styles.layerButtonText,
-                selectedMapStyle.id === style.id && styles.selectedLayerText
-              ]}>
-                {style.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        <TouchableOpacity
-          style={styles.timeButton}
-          onPress={() => setShowDatePicker(!showDatePicker)}
+              <Text
+          style={[
+            styles.layerButtonText,
+            selectedLayer.id === layer.id && styles.selectedLayerText,
+          ]}
         >
-          <Text style={styles.timeButtonText}>
-            {selectedTime ? formatTime(selectedTime) : 'Select Date & Time'}
-          </Text>
-        </TouchableOpacity>
+          {layer.name}
+        </Text>
+      </TouchableOpacity>
+    ))}
+  </ScrollView>
 
-        <Modal
-          visible={showDatePicker}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={() => setShowDatePicker(false)}
+  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mapStyleRow}>
+    {MAP_STYLES.map((style) => (
+      <TouchableOpacity
+        key={style.id}
+        style={[
+          styles.layerButton,
+          selectedMapStyle.id === style.id && styles.selectedLayer,
+        ]}
+        onPress={() => setSelectedMapStyle(style)}
+      >
+        <Text
+          style={[
+            styles.layerButtonText,
+            selectedMapStyle.id === style.id && styles.selectedLayerText,
+          ]}
         >
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setShowDatePicker(false)}
-          >
-            <View 
-              style={styles.modalContent}
-              onStartShouldSetResponder={() => true}
+          {style.name}
+        </Text>
+      </TouchableOpacity>
+    ))}
+  </ScrollView>
+
+  <TouchableOpacity
+    style={styles.timeButton}
+    onPress={() => setShowDatePicker(!showDatePicker)}
+  >
+    <Text style={styles.timeButtonText}>
+      {selectedTime ? formatTime(selectedTime) : 'Select Date & Time'}
+    </Text>
+  </TouchableOpacity>
+
+  <Modal
+    visible={showDatePicker}
+    transparent={true}
+    animationType="slide"
+    onRequestClose={() => setShowDatePicker(false)}
+  >
+    <TouchableOpacity
+      style={styles.modalOverlay}
+      activeOpacity={1}
+      onPress={() => setShowDatePicker(false)}
+    >
+      <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+        {Object.keys(groupedTimes).length > 0 ? (
+          <>
+            <View style={styles.datePickerHeader}>
+              <Text style={styles.pickerTitle}>Select Date</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.dateScroller}
             >
-              {Object.keys(groupedTimes).length > 0 ? (
-                <>
-                  <View style={styles.datePickerHeader}>
-                    <Text style={styles.pickerTitle}>Select Date</Text>
-                  </View>
-                  <ScrollView 
-                    horizontal 
-                    showsHorizontalScrollIndicator={false}
-                    style={styles.dateScroller}
+              {Object.keys(groupedTimes)
+                .sort((a, b) => parseInt(b) - parseInt(a))
+                .map((date) => (
+                  <TouchableOpacity
+                    key={date}
+                    style={[
+                      styles.dateOption,
+                      selectedDate === date && styles.selectedDateOption,
+                    ]}
+                    onPress={() => setSelectedDate(date)}
                   >
-                    {Object.keys(groupedTimes)
-                    .sort((a, b) => parseInt(b) - parseInt(a)) 
-                    .map(date => (
-                      <TouchableOpacity
-                        key={date}
-                        style={[
-                          styles.dateOption,
-                          selectedDate === date && styles.selectedDateOption
-                        ]}
-                        onPress={() => setSelectedDate(date)}
-                      >
-                        <Text style={[
-                          styles.dateOptionText,
-                          selectedDate === date && styles.selectedDateOptionText
-                        ]}>
-                          {formatDate(date)}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                    <Text
+                      style={[
+                        styles.dateOptionText,
+                        selectedDate === date && styles.selectedDateOptionText,
+                      ]}
+                    >
+                      {formatDate(date)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+            </ScrollView>
 
-                  {selectedDate && (
-                    <>
-                      <View style={styles.timePickerHeader}>
-                        <Text style={styles.pickerTitle}>Select Time</Text>
-                      </View>
-                      <ScrollView style={styles.timeList}>
-                        {groupedTimes[selectedDate].map((time) => (
-                          <TouchableOpacity
-                            key={time}
-                            style={[
-                              styles.timeOption,
-                              selectedTime === time && styles.selectedTimeOption
-                            ]}
-                            onPress={() => {
-                              setSelectedTime(time);
-                              setShowDatePicker(false);
-                            }}
-                          >
-                            <Text style={[
-                              styles.timeOptionText,
-                              selectedTime === time && styles.selectedTimeOptionText
-                            ]}>
-                              {time.substring(9, 11)}:{time.substring(11, 13)} UTC
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
-                    </>
-                  )}
-                </>
-              ) : (
-                <View style={styles.noTimesContainer}>
-                  <Text style={styles.noTimesText}>Loading available times...</Text>
+            {selectedDate && (
+              <>
+                <View style={styles.timePickerHeader}>
+                  <Text style={styles.pickerTitle}>Select Time</Text>
                 </View>
-              )}
+                <ScrollView style={styles.timeList}>
+                  {groupedTimes[selectedDate].map((time) => (
+                    <TouchableOpacity
+                      key={time}
+                      style={[
+                        styles.timeOption,
+                        selectedTime === time && styles.selectedTimeOption,
+                      ]}
+                      onPress={() => {
+                        setSelectedTime(time);
+                        setShowDatePicker(false);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.timeOptionText,
+                          selectedTime === time && styles.selectedTimeOptionText,
+                        ]}
+                      >
+                        {time.substring(9, 11)}:{time.substring(11, 13)} UTC
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </>
+            )}
+          </>
+        ) : (
+          <View style={styles.noTimesContainer}>
+          <Text style={styles.noTimesText}>Loading available times...</Text>
+        </View>
+      )}
             </View>
           </TouchableOpacity>
         </Modal>
@@ -747,5 +787,10 @@ const styles = StyleSheet.create({
   },
   mapStyleRow: {
     marginTop: 10,
+  },
+  infoText: {
+    fontSize: 16,
+    color: '#333',
+    marginBottom: 5,
   },
 });
