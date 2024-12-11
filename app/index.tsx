@@ -210,7 +210,6 @@ export default function Home() {
     }
   }, [availableTimes]);
 
-  // Fetch times for the selected layer
   const fetchTimes = async () => {
     try {
       const productId = selectedLayer.gridLayer;
@@ -239,7 +238,6 @@ export default function Home() {
     setCustomLocation({ latitude, longitude });
   };
 
-  // Reset states when the selected layer changes
   useEffect(() => {
     setShowDatePicker(false);
     setAvailableTimes([]);
@@ -351,9 +349,9 @@ export default function Home() {
     latitudeDelta: 50,
     longitudeDelta: 50,
   }}
-  minZoomLevel={2} // Set minimum zoom to prevent invalid tile requests
-  maxZoomLevel={12} // Adjust to match RealEarth supported zoom levels
-  onPress={handleMapPress} // Allow users to set a custom location by tapping the map
+  minZoomLevel={2} 
+  maxZoomLevel={12} 
+  onPress={handleMapPress} 
 >
   {/* Current Location Marker */}
   {currentLocation && (
@@ -382,10 +380,10 @@ export default function Home() {
     <UrlTile
       key={`${selectedLayer.gridLayer}-${selectedTime}`}
       urlTemplate={`https://realearth.ssec.wisc.edu/api/image?products=${selectedLayer.gridLayer}&time=${selectedTime}&x={x}&y={y}&z={z}`}
-      maximumZ={12} // Limit maximum zoom to avoid "size limit exceeded"
-      tileSize={256} // Default tile size for RealEarth
-      opacity={0.6} // Maintain overlay transparency
-      shouldReplaceMapContent={false} // Prevent replacing the base map
+      maximumZ={12} 
+      tileSize={256} 
+      opacity={0.6} 
+      shouldReplaceMapContent={false} 
     />
   )}
 </MapView>
@@ -413,6 +411,9 @@ export default function Home() {
     }
   }}
 >
+<Text style={styles.toggleButtonText}>
+    {isLocationEnabled ? 'Turn Off Location' : 'Turn On Location'}
+  </Text>
   <Ionicons 
     name={isLocationEnabled ? 'location' : 'location-off'} 
     size={24} 
@@ -813,6 +814,10 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   toggleButton: {
+    padding: 10,
+    backgroundColor: '#007AFF',
+    borderRadius: 5,
+    marginBottom: 10,
     width: 50,
     height: 50,
     borderRadius: 25,
@@ -831,6 +836,5 @@ const styles = StyleSheet.create({
   toggleButtonText: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: 16,
-  },
+},
 });
