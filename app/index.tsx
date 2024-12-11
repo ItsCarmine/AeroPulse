@@ -413,9 +413,11 @@ export default function Home() {
     }
   }}
 >
-  <Text style={styles.toggleButtonText}>
-    {isLocationEnabled ? 'Turn Off Location' : 'Turn On Location'}
-  </Text>
+  <Ionicons 
+    name={isLocationEnabled ? 'location' : 'location-off'} 
+    size={24} 
+    color="#007AFF" 
+  />
 </TouchableOpacity>
 
   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -811,12 +813,21 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   toggleButton: {
-    padding: 10,
-    backgroundColor: '#007AFF',
-    borderRadius: 5,
-    marginBottom: 10,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
     alignItems: 'center',
-  },
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    position: 'absolute',
+    bottom: 172,
+    right: 20,
+  },  
   toggleButtonText: {
     color: '#fff',
     fontWeight: 'bold',
