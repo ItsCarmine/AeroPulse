@@ -21,11 +21,6 @@ interface MapStyleConfig {
 // Define the map styles
 const MAP_STYLES: MapStyleConfig[] = [
   {
-    id: 'default',
-    name: 'Default',
-    style: [], 
-  },
-  {
     id: 'terrain',
     name: 'Terrain',
     style: [
@@ -56,7 +51,24 @@ const MAP_STYLES: MapStyleConfig[] = [
       },
     ],
   },
+  {
+    id: 'satellite',
+    name: 'Satellite',
+    style: [
+      {
+        featureType: 'all',
+        elementType: 'geometry',
+        stylers: [{ color: '#ffffff' }],
+      },
+      {
+        featureType: 'all',
+        elementType: 'labels',
+        stylers: [{ visibility: 'off' }],
+      },
+    ],
+  },
 ];
+
 
 
 const AVAILABLE_LAYERS: LayerConfig[] = [
@@ -141,6 +153,7 @@ const mapStyle = [
 ];
 
 export default function Home() {
+  const [mapType, setMapType] = useState<'terrain' | 'satellite'>('terrain');
   const [isLocationEnabled, setIsLocationEnabled] = useState(true);
   const [selectedLayer, setSelectedLayer] = useState<LayerConfig>(AVAILABLE_LAYERS[0]);
   const [availableTimes, setAvailableTimes] = useState<string[]>([]);
@@ -339,22 +352,21 @@ export default function Home() {
       </View>
 
       {/* Map */}
-<MapView
+      <MapView
   style={styles.map}
-  showsUserLocation={true}
-  customMapStyle={selectedMapStyle.style}
+  showsUserLocation={isLocationEnabled}
+  mapType={mapType}
   initialRegion={{
     latitude: 37.0902,
     longitude: -95.7129,
     latitudeDelta: 50,
     longitudeDelta: 50,
   }}
-  minZoomLevel={2} 
-  maxZoomLevel={12} 
-  onPress={handleMapPress} 
+  minZoomLevel={2}
+  maxZoomLevel={12}
+  onPress={handleMapPress}
 >
-  {/* Current Location Marker */}
-  {currentLocation && (
+  {isLocationEnabled && currentLocation && (
     <Marker
       coordinate={currentLocation}
       title="Your Location"
@@ -366,8 +378,7 @@ export default function Home() {
     </Marker>
   )}
 
-  {/* Custom Location Marker */}
-  {customLocation && (
+  {isLocationEnabled && customLocation && (
     <Marker
       coordinate={customLocation}
       title="Custom Location"
@@ -375,15 +386,14 @@ export default function Home() {
     />
   )}
 
-  {/* RealEarth Grid Layer */}
   {showGridLayer && selectedTime && selectedLayer && (
     <UrlTile
       key={`${selectedLayer.gridLayer}-${selectedTime}`}
       urlTemplate={`https://realearth.ssec.wisc.edu/api/image?products=${selectedLayer.gridLayer}&time=${selectedTime}&x={x}&y={y}&z={z}`}
-      maximumZ={12} 
-      tileSize={256} 
-      opacity={0.6} 
-      shouldReplaceMapContent={false} 
+      maximumZ={12}
+      tileSize={256}
+      opacity={0.6}
+      shouldReplaceMapContent={false}
     />
   )}
 </MapView>
@@ -421,65 +431,27 @@ export default function Home() {
   />
 </TouchableOpacity>
 
-  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-    {AVAILABLE_LAYERS.map((layer) => (
-      <TouchableOpacity
-        key={layer.id}
+<ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mapStyleRow}>
+  {['terrain', 'satellite'].map((type) => (
+    <TouchableOpacity
+      key={type}
+      style={[
+        styles.layerButton,
+        mapType === type && styles.selectedLayer,
+      ]}
+      onPress={() => setMapType(type as 'terrain' | 'satellite')}
+    >
+      <Text
         style={[
-          styles.layerButton,
-          selectedLayer.id === layer.id && styles.selectedLayer,
+          styles.layerButtonText,
+          mapType === type && styles.selectedLayerText,
         ]}
-        onPress={async () => {
-          setSelectedLayer(layer);
-          try {
-            const url = `https://realearth.ssec.wisc.edu/api/times?products=${layer.gridLayer}`;
-            const response = await axios.get(url);
-            if (response.data && response.data[layer.gridLayer]) {
-              const times = response.data[layer.gridLayer];
-              setAvailableTimes(times);
-              if (times.length > 0) {
-                const latestTime = times[times.length - 1];
-                setSelectedTime(latestTime);
-              }
-            }
-          } catch (error) {
-            console.error('Error fetching times for new layer:', error);
-          }
-        }}
       >
-        <Text
-          style={[
-            styles.layerButtonText,
-            selectedLayer.id === layer.id && styles.selectedLayerText,
-          ]}
-        >
-          {layer.name}
-        </Text>
-      </TouchableOpacity>
-    ))}
-  </ScrollView>
-
-  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mapStyleRow}>
-    {MAP_STYLES.map((style) => (
-      <TouchableOpacity
-        key={style.id}
-        style={[
-          styles.layerButton,
-          selectedMapStyle.id === style.id && styles.selectedLayer,
-        ]}
-        onPress={() => setSelectedMapStyle(style)}
-      >
-        <Text
-          style={[
-            styles.layerButtonText,
-            selectedMapStyle.id === style.id && styles.selectedLayerText,
-          ]}
-        >
-          {style.name}
-        </Text>
-      </TouchableOpacity>
-    ))}
-  </ScrollView>
+        {type.charAt(0).toUpperCase() + type.slice(1)}
+      </Text>
+    </TouchableOpacity>
+  ))}
+</ScrollView>
 
   <TouchableOpacity
     style={styles.timeButton}
