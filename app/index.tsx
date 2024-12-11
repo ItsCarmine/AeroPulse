@@ -391,32 +391,32 @@ export default function Home() {
 </MapView>
 
 <View style={styles.controls}>
-  {currentLocation && (
-    <Text style={styles.infoText}>
-      Current Location: {currentLocation.latitude.toFixed(6)}, {currentLocation.longitude.toFixed(6)}
-    </Text>
-  )}
-  {customLocation && (
-    <Text style={styles.infoText}>
-      Custom Location: {customLocation.latitude.toFixed(6)}, {customLocation.longitude.toFixed(6)}
-    </Text>
-  )}
+{isLocationEnabled && currentLocation && (
+  <Text style={styles.infoText}>
+    Current Location: {currentLocation.latitude.toFixed(6)}, {currentLocation.longitude.toFixed(6)}
+  </Text>
+)}
+{isLocationEnabled && customLocation && (
+  <Text style={styles.infoText}>
+    Custom Location: {customLocation.latitude.toFixed(6)}, {customLocation.longitude.toFixed(6)}
+  </Text>
+)}
 
-  <TouchableOpacity
-    style={styles.toggleButton}
-    onPress={() => {
-      setIsLocationEnabled(!isLocationEnabled);
-      if (!isLocationEnabled) {
-        requestLocationPermission();
-      } else {
-        setCurrentLocation(null);
-      }
-    }}
-  >
-    <Text style={styles.toggleButtonText}>
-      {isLocationEnabled ? 'Turn Off Location' : 'Turn On Location'}
-    </Text>
-  </TouchableOpacity>
+<TouchableOpacity
+  style={styles.toggleButton}
+  onPress={() => {
+    setIsLocationEnabled(!isLocationEnabled);
+    if (isLocationEnabled) {
+      setCurrentLocation(null);
+    } else {
+      requestLocationPermission();
+    }
+  }}
+>
+  <Text style={styles.toggleButtonText}>
+    {isLocationEnabled ? 'Turn Off Location' : 'Turn On Location'}
+  </Text>
+</TouchableOpacity>
 
   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
     {AVAILABLE_LAYERS.map((layer) => (
