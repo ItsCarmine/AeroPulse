@@ -141,6 +141,7 @@ const mapStyle = [
 ];
 
 export default function Home() {
+  const [isLocationEnabled, setIsLocationEnabled] = useState(true);
   const [selectedLayer, setSelectedLayer] = useState<LayerConfig>(AVAILABLE_LAYERS[0]);
   const [availableTimes, setAvailableTimes] = useState<string[]>([]);
   const [selectedTime, setSelectedTime] = useState<string>('');
@@ -155,35 +156,36 @@ export default function Home() {
   const [selectedMapStyle, setSelectedMapStyle] = useState<MapStyleConfig>(MAP_STYLES[0]);
 
   const requestLocationPermission = async () => {
-  try {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-
-    if (status !== 'granted') {
-      alert('Permission to access location was denied. Please enable it in your device settings.');
-      return;
-    }
-
-    Location.watchPositionAsync(
-      {
-        accuracy: Location.Accuracy.High,
-        timeInterval: 1000, 
-        distanceInterval: 1,
-      },
-      (location) => {
-        setCurrentLocation({
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-        });
+    try {
+      if (!isLocationEnabled) {
+        setCurrentLocation(null);
+        return;
       }
-    );
-  } catch (err) {
-    console.error('Error requesting location permission:', err);
-  }
-};
-
+  
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.High,
+            timeInterval: 1000,
+            distanceInterval: 1,
+          },
+          (location) => {
+            setCurrentLocation({
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+            });
+          }
+        );
+      }
+    } catch (err) {
+      console.warn('Location permission error:', err);
+    }
+  };
+  
   useEffect(() => {
     requestLocationPermission();
-  }, []);
+  }, [isLocationEnabled]);
 
   useEffect(() => {
     if (availableTimes.length > 0) {
@@ -388,9 +390,8 @@ export default function Home() {
   )}
 </MapView>
 
-      <View style={styles.controls}>
-        
-        {currentLocation && (
+<View style={styles.controls}>
+  {currentLocation && (
     <Text style={styles.infoText}>
       Current Location: {currentLocation.latitude.toFixed(6)}, {currentLocation.longitude.toFixed(6)}
     </Text>
@@ -400,8 +401,24 @@ export default function Home() {
       Custom Location: {customLocation.latitude.toFixed(6)}, {customLocation.longitude.toFixed(6)}
     </Text>
   )}
-        
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+
+  <TouchableOpacity
+    style={styles.toggleButton}
+    onPress={() => {
+      setIsLocationEnabled(!isLocationEnabled);
+      if (!isLocationEnabled) {
+        requestLocationPermission();
+      } else {
+        setCurrentLocation(null);
+      }
+    }}
+  >
+    <Text style={styles.toggleButtonText}>
+      {isLocationEnabled ? 'Turn Off Location' : 'Turn On Location'}
+    </Text>
+  </TouchableOpacity>
+
+  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
     {AVAILABLE_LAYERS.map((layer) => (
       <TouchableOpacity
         key={layer.id}
@@ -426,8 +443,8 @@ export default function Home() {
             console.error('Error fetching times for new layer:', error);
           }
         }}
-            >
-              <Text
+      >
+        <Text
           style={[
             styles.layerButtonText,
             selectedLayer.id === layer.id && styles.selectedLayerText,
@@ -792,5 +809,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
     marginBottom: 5,
+  },
+  toggleButton: {
+    padding: 10,
+    backgroundColor: '#007AFF',
+    borderRadius: 5,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  toggleButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });
