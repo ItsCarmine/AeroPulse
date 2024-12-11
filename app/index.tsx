@@ -168,6 +168,46 @@ export default function Home() {
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [selectedMapStyle, setSelectedMapStyle] = useState<MapStyleConfig>(MAP_STYLES[0]);
 
+  const fetchRealTimeData = async () => {
+    let retries = 3;
+    
+    while (retries > 0) {
+      try {
+        const productId = selectedLayer.gridLayer;
+        const url = `https://bin.ssec.wisc.edu/pub/turbulence/gridded_data/${productId}/latest.json`;
+  
+        const response = await axios.get(url);
+        
+        if (response.status === 200 && response.data) {
+          console.log('Turbulence Data:', response.data);
+          if (response.data.time) {
+            setSelectedTime(response.data.time);
+          } else {
+            console.warn('No time field in response data.');
+          }
+          break; 
+        } else {
+          console.error(`Unexpected response: ${response.status}`);
+          retries--;
+          if (retries === 0) console.error('Max retries reached.');
+        }
+      } catch (error) {
+        retries--;
+        if (error instanceof Error) {
+          console.error('Error fetching real-time turbulence data:', error.message);
+        } else {
+          console.error('Unknown error occurred during the fetch:', error);
+        }
+  
+        if (retries === 0) {
+          console.error('Max retries reached.');
+        } else {
+          console.log(`Retrying... (${3 - retries} attempts left)`);
+        }
+      }
+    }
+  };
+  
   const requestLocationPermission = async () => {
     try {
       if (!isLocationEnabled) {
@@ -200,6 +240,14 @@ export default function Home() {
     requestLocationPermission();
   }, [isLocationEnabled]);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchRealTimeData();
+    }, 60000); 
+  
+    return () => clearInterval(interval); 
+  }, [selectedLayer]);
+  
   useEffect(() => {
     if (availableTimes.length > 0) {
       const grouped = availableTimes.reduce((acc, time) => {
@@ -388,13 +436,13 @@ export default function Home() {
 
   {showGridLayer && selectedTime && selectedLayer && (
     <UrlTile
-      key={`${selectedLayer.gridLayer}-${selectedTime}`}
-      urlTemplate={`https://realearth.ssec.wisc.edu/api/image?products=${selectedLayer.gridLayer}&time=${selectedTime}&x={x}&y={y}&z={z}`}
-      maximumZ={12}
-      tileSize={256}
-      opacity={0.6}
-      shouldReplaceMapContent={false}
-    />
+    key={`${selectedLayer.gridLayer}-${selectedTime}`}
+    urlTemplate={`https://realearth.ssec.wisc.edu/api/image?products=${selectedLayer.gridLayer}&time=${selectedTime}&x={x}&y={y}&z={z}`}
+    maximumZ={12}
+    tileSize={256}
+    opacity={0.6}
+    shouldReplaceMapContent={false}
+  />  
   )}
 </MapView>
 
