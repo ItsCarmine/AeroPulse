@@ -20,47 +20,43 @@ interface MapStyleConfig {
 // Define the map styles
 const MAP_STYLES: MapStyleConfig[] = [
   {
-    id: 'simple',
-    name: 'Clean and Simple',
-    style: [
-      {
-        "elementType": "geometry",
-        "stylers": [{ "color": "#f5f5f5" }]
-      },
-      {
-        "elementType": "labels.icon",
-        "stylers": [{ "visibility": "off" }]
-      },
-      {
-        "elementType": "labels.text.fill",
-        "stylers": [{ "color": "#616161" }]
-      },
-      {
-        "elementType": "labels.text.stroke",
-        "stylers": [{ "color": "#f5f5f5" }]
-      },
-      {
-        "featureType": "administrative.land_parcel",
-        "stylers": [{ "visibility": "off" }]
-      },
-      {
-        "featureType": "water",
-        "elementType": "geometry",
-        "stylers": [{ "color": "#e9e9e9" }]
-      },
-      {
-        "featureType": "water",
-        "elementType": "labels.text.fill",
-        "stylers": [{ "color": "#9e9e9e" }]
-      }
-    ]
+    id: 'default',
+    name: 'Default',
+    style: [], 
   },
   {
-    id: 'default',
-    name: 'Realistic (Google Map Original)',
-    style: [] // Empty array for default Google Maps style
-  }
+    id: 'terrain',
+    name: 'Terrain',
+    style: [
+      {
+        featureType: 'all',
+        elementType: 'all',
+        stylers: [{ visibility: 'on' }],
+      },
+      {
+        featureType: 'landscape.natural',
+        elementType: 'geometry.fill',
+        stylers: [{ color: '#dde2e3' }],
+      },
+      {
+        featureType: 'poi.park',
+        elementType: 'geometry.fill',
+        stylers: [{ color: '#c8e6c9' }],
+      },
+      {
+        featureType: 'road',
+        elementType: 'geometry',
+        stylers: [{ color: '#f5f1e6' }],
+      },
+      {
+        featureType: 'water',
+        elementType: 'geometry.fill',
+        stylers: [{ color: '#b0d5ff' }],
+      },
+    ],
+  },
 ];
+
 
 const AVAILABLE_LAYERS: LayerConfig[] = [
   { id: '30-31', name: '30-31 kft', gridLayer: 'turb-grid-30-31-kft' },
@@ -342,25 +338,29 @@ export default function Home() {
 
       {/* Map */}
       <MapView
-        style={styles.map}
-        showsUserLocation={true}
-        customMapStyle={selectedMapStyle.style}
-        initialRegion={{
-          latitude: 37.0902,
-          longitude: -95.7129,
-          latitudeDelta: 50,
-          longitudeDelta: 50,
-        }}
-      >
-        {showGridLayer && selectedTime && selectedLayer && (
-          <UrlTile
-            key={`${selectedLayer.gridLayer}-${selectedTime}`}
-            urlTemplate={`https://realearth.ssec.wisc.edu/api/image?products=${selectedLayer.gridLayer}&time=${selectedTime}&x={x}&y={y}&z={z}`}
-            maximumZ={20}
-            opacity={0.6}
-          />
-        )}
-      </MapView>
+  style={styles.map}
+  showsUserLocation={true}
+  customMapStyle={selectedMapStyle.style}
+  initialRegion={{
+    latitude: 37.0902,
+    longitude: -95.7129,
+    latitudeDelta: 50,
+    longitudeDelta: 50,
+  }}
+  minZoomLevel={2} // Set minimum zoom to prevent invalid tile requests
+  maxZoomLevel={12} // Adjust to match RealEarth supported zoom levels
+>
+  {showGridLayer && selectedTime && selectedLayer && (
+    <UrlTile
+      key={`${selectedLayer.gridLayer}-${selectedTime}`}
+      urlTemplate={`https://realearth.ssec.wisc.edu/api/image?products=${selectedLayer.gridLayer}&time=${selectedTime}&x={x}&y={y}&z={z}`}
+      maximumZ={12} // Limit maximum zoom to avoid "size limit exceeded"
+      tileSize={256} // Default tile size for RealEarth
+      opacity={0.6} // Maintain overlay transparency
+      shouldReplaceMapContent={false} // Prevent replacing the base map
+    />
+  )}
+</MapView>
 
       <View style={styles.controls}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
